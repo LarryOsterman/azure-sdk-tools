@@ -6,6 +6,7 @@
 
 from apistub.nodes import ClassNode, KeyNode, VariableNode, FunctionNode
 from apistubgentest.models import (
+    FakeInventoryItemDataClass,
     FakeTypedDict,
     FakeObject,
     ObjectWithDefaults,
@@ -18,8 +19,6 @@ from apistubgentest.models import (
 
 class TestClassParsing:
     
-    pkg_namespace = "apistubgentest.models._models"
-
     def _check_nodes(self, nodes, checks):
         assert len(nodes) == len(checks)
         for (i, node) in enumerate(nodes):
@@ -31,18 +30,26 @@ class TestClassParsing:
                 actual_type = node.type
                 assert actual_type == check_type
 
+    def test_data_class(self):
+        class_node = ClassNode("test", None, FakeInventoryItemDataClass, "test")
+        self._check_nodes(class_node.child_nodes, [
+            (VariableNode, "name", "str"),
+            (VariableNode, "quantity_on_hand", "int"),
+            (VariableNode, "unit_price", "float"),
+            (FunctionNode, "total_cost", None)
+        ])
+
     def test_typed_dict_class(self):
         class_node = ClassNode(name="FakeTypedDict", namespace="test", parent_node=None, obj=FakeTypedDict, pkg_root_namespace=self.pkg_namespace)
         self._check_nodes(class_node.child_nodes, [
             (KeyNode, '"age"', "int"),
             (KeyNode, '"name"', "str"),
-            (KeyNode, '"union"', f"Union[bool, {self.pkg_namespace}.FakeObject, PetEnum]")
+            (KeyNode, '"union"', "Union[bool, tests.class_parsing_test.FakeObject, PetEnum]")
         ])
 
     def test_object(self):
         class_node = ClassNode(name="FakeObject", namespace="test", parent_node=None, obj=FakeObject, pkg_root_namespace=self.pkg_namespace)
         self._check_nodes(class_node.child_nodes, [
-            (VariableNode, "PUBLIC_CONST", "str"),
             (VariableNode, "age", "int"),
             (VariableNode, "name", "str"),
             (VariableNode, "union", "Union[bool, PetEnum]"),

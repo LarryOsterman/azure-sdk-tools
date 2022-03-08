@@ -6,6 +6,7 @@ import importlib
 import operator
 
 from ._base_node import NodeEntityBase
+from ._data_class_node import DataClassNode
 from ._class_node import ClassNode
 from ._function_node import FunctionNode
 from apistub import Navigation, Kind, NavigationTag
@@ -42,12 +43,16 @@ class ModuleNode(NodeEntityBase):
                 continue
 
             if inspect.isclass(member_obj):
-                class_node = ClassNode(
+                if hasattr(member_obj, "__dataclass_fields__") or hasattr(member_obj, "__dataclass_params__"):
+                    class_type = DataClassNode
+                else:
+                    class_type = ClassNode
+                class_node = class_type(
                     name=name,
-                    namespace=self.namespace,
+                    namspace=self.namespace,
                     parent_node=self,
                     obj=member_obj,
-                    pkg_root_namespace=self.pkg_root_namespace
+                    pkg_root=self.pkg_root_namespace
                 )
                 key = "{0}.{1}".format(self.namespace, class_node.name)
                 self.node_index.add(key, class_node)
