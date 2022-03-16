@@ -6,11 +6,12 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 
-from azure.core import CaseInsensitiveEnumMeta
 from dataclasses import dataclass
 from enum import Enum, EnumMeta
-from six import with_metaclass
 from typing import Any, TypedDict, Union
+from six import with_metaclass
+
+from azure.core import CaseInsensitiveEnumMeta
 
 
 class PublicCaseInsensitiveEnumMeta(EnumMeta):
@@ -148,6 +149,13 @@ class ObjectWithDefaults:
         self.age = age
         self.is_awesome = is_awesome
         self.pet = pet
+
+
+class ObjectWithCustomPylintViolations:
+
+    def too_many_pos_args(self, a, b, c, d, e, f, g, h):
+        pass
+
 
 class SomePoorlyNamedObject:
 

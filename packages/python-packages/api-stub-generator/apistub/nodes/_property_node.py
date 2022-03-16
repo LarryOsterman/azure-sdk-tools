@@ -12,7 +12,6 @@ class PropertyNode(NodeEntityBase):
         self.obj = obj
         self.read_only = True
         self.type = ""
-        self.errors = []
         self.name = name
         self._inspect()
         # Generate ID using name found by inspect
@@ -40,7 +39,7 @@ class PropertyNode(NodeEntityBase):
                     if not self.type:
                         self.type = docstring_parser.ret_type
                 except:
-                    self.errors.append("Failed to find type of property {}".format(self.name))
+                    pass
 
         self.display_name = "{0}: {1}".format(self.name, self.type)
         if self.read_only:
@@ -61,10 +60,5 @@ class PropertyNode(NodeEntityBase):
         if self.read_only:
             apiview.add_whitespace()
             apiview.add_literal("# Read-only")
-
-
-    def print_errors(self):
-        if self.errors:
-            print("property: {}".format(self.name))
-            for e in self.errors:
-                print("    {}".format(e))
+        for err in self.pylint_errors:
+            err.generate_tokens(apiview, self.namespace_id)

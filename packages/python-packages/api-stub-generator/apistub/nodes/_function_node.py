@@ -32,14 +32,6 @@ LINT_EXCLUSION_METHODS = [
 REGEX_FIND_LONG_TYPE = "((?:~?)[\w.]+\.+([\w]+))"
 
 
-def is_kwarg_mandatory(func_name):
-    return not func_name.startswith("_") and func_name not in KWARG_NOT_REQUIRED_METHODS
-
-
-def is_typehint_mandatory(func_name):
-    return not func_name.startswith("_") and func_name not in TYPEHINT_NOT_REQUIRED_METHODS
-
-
 class FunctionNode(NodeEntityBase):
     """Function node class represents parsed function signature.
     Keyword args will be parsed and added to signature if docstring is available.
@@ -89,21 +81,13 @@ class FunctionNode(NodeEntityBase):
             self.namespace_id += ":async"
 
         # Find decorators and any annotations
-        try:
-            node = astroid.extract_node(inspect.getsource(self.obj))
-            if node.decorators:
-                self.annotations = [
-                    "@{}".format(x.name)
-                    for x in node.decorators.nodes
-                    if hasattr(x, "name")
-                ]
-        except:
-            # TODO: Update exception details in error
-            error_message = "Error in parsing decorators for function {}".format(
-                self.name
-            )
-            self.add_error(error_message)
-
+        node = astroid.extract_node(inspect.getsource(self.obj))
+        if node.decorators:
+            self.annotations = [
+                "@{}".format(x.name)
+                for x in node.decorators.nodes
+                if hasattr(x, "name")
+            ]
         self.is_class_method = "@classmethod" in self.annotations
         self._parse_function()
 
@@ -153,11 +137,6 @@ class FunctionNode(NodeEntityBase):
         self._parse_typehint()
         self._order_final_args()
 
-        if not self.return_type and is_typehint_mandatory(self.name):
-            self.add_error("Return type is missing in both typehint and docstring")
-        # Validate return type
-        self._validate_pageable_api()
-
 
     def _order_final_args(self):
         # find and temporarily remove the kwargs param from arguments
@@ -184,11 +163,6 @@ class FunctionNode(NodeEntityBase):
         # re-append "**kwargs" to the end of the arguments list
         if kwargs_param:
             self.args[kwargs_name] = kwargs_param
-
-        # API must have **kwargs for non async methods. Flag it as an error if it is missing for public API
-        if not kwargs_param and is_kwarg_mandatory(self.name):
-            self.errors.append("Keyword arg (**kwargs) is missing in method {}".format(self.name))
-
 
     def _parse_docstring(self):
         # Parse docstring to get list of keyword args, type and default value for both positional and
@@ -251,9 +225,9 @@ class FunctionNode(NodeEntityBase):
 
     def _parse_typehint(self):
 
-        # Skip parsing typehint if typehint is not expected for e.g dunder or async methods
+        # Skip parsing typehint if typehint is not expected for async methods
         # and if return type is already found
-        if self.return_type and not is_typehint_mandatory(self.name) or self.is_async:
+        if self.return_type and self.is_async:
             return
 
         # Parse type hint to get return type and types for positional args
@@ -262,18 +236,8 @@ class FunctionNode(NodeEntityBase):
         type_hint_ret_type = typehint_parser.ret_type
         # Type hint must be present for all APIs. Flag it as an error if typehint is missing
         if  not type_hint_ret_type:
-            if (is_typehint_mandatory(self.name)):
-                self.add_error("Typehint is missing for method {}".format(self.name))
             return
 
-        if self.return_type:
-            # Verify return type is same in docstring and typehint if typehint is available
-            short_return_type = self._generate_short_type(self.return_type)
-            long_ret_type = self.return_type
-            if long_ret_type != type_hint_ret_type and short_return_type != type_hint_ret_type:
-                logging.info("Long type: {0}, Short type: {1}, Type hint return type: {2}".format(long_ret_type, short_return_type, type_hint_ret_type))
-                error_message = "The return type is described in both a type hint and docstring, but they do not match."
-                self.add_error(error_message)
         # because the typehint isn't subject to the 2-line limit, prefer it over
         # a type parsed from the docstring.
         self.return_type = type_hint_ret_type or self.return_type
@@ -345,38 +309,5 @@ class FunctionNode(NodeEntityBase):
             apiview.add_type(self.return_type)
         apiview.add_newline()
 
-        if self.errors:
-            for e in self.errors:
-                apiview.add_diagnostic(e, self.namespace_id)
-
-
-    def add_error(self, error_msg):
-        # Ignore errors for lint check excluded methods
-        if self.name in LINT_EXCLUSION_METHODS:
-            return
-
-        # Hide all diagnostics for now for dunder methods
-        # These are well known protocol implementation
-        if not self.name.startswith("_") or self.name in VALIDATION_REQUIRED_DUNDER:
-            self.errors.append(error_msg)
-
-
-    def _validate_pageable_api(self):
-        # If api name starts with "list" and if annotated with "@distributed_trace"
-        # then this method should return ItemPaged or AsyncItemPaged
-        if self.return_type and self.name.startswith("list") and  "@distributed_trace" in self.annotations:
-            tokens = re.search(REGEX_ITEM_PAGED, self.return_type)
-            if tokens:
-                ret_short_type = tokens.groups()[-1]
-                if ret_short_type in PAGED_TYPES:
-                    logging.debug("list API returns valid paged return type")
-                    return
-            error_msg = "list API {0} should return ItemPaged or AsyncItemPaged instead of {1} and page type must be included in docstring rtype".format(self.name, self.return_type)
-            self.add_error(error_msg)                
-        
-
-    def print_errors(self):
-        if self.errors:
-            print("  method: {}".format(self.name))
-            for e in self.errors:
-                print("      {}".format(e))
+        for err in self.pylint_errors:
+            err.generate_tokens(apiview, self.namespace_id)        

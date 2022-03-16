@@ -156,13 +156,6 @@ class ApiView:
         navigate_to_id = self.node_index.get_id(type_full_name)
         if navigate_to_id:
             token.navigate_to_id = navigate_to_id
-        elif type_name.startswith("~") and line_id:
-            # Check if type name is importable. If type name is incorrect in docstring then it wont be importable
-            # If type name is importable then it's a valid type name. Source link wont be available if type is from 
-            # different package
-            if not is_valid_type_name(type_full_name):
-                # Navigation ID is missing for internal type, add diagnostic error
-                self.add_diagnostic(SOURCE_LINK_NOT_AVAILABLE.format(token.value), line_id)            
         self.add_token(token)
 
 
@@ -189,8 +182,8 @@ class ApiView:
             self.add_punctuation(type_name)        
 
 
-    def add_diagnostic(self, text, line_id):
-        self.diagnostics.append(Diagnostic(line_id, text))
+    def add_diagnostic(self, *, obj, target_id):
+        self.diagnostics.append(Diagnostic(obj=obj, target_id=target_id))
 
 
     def add_member(self, name, id):

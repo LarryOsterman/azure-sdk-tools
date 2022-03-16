@@ -1,10 +1,11 @@
 import os
+
 from ._version import VERSION
 from ._stub_generator import StubGenerator
 from ._token import Token
 from ._token_kind import TokenKind
 from ._apiview import ApiView, Navigation, NavigationTag, Kind
-from ._diagnostic import Diagnostic
+from ._diagnostic import Diagnostic, DiagnosticLevel
 
 __version__ = VERSION
 
@@ -17,11 +18,15 @@ __all__ = [
     "NavigationTag",
     "Kind",
     "Diagnostic",
+    "DiagnosticLevel",
 ]
 
 
 def console_entry_point():
+    from .nodes import PylintParser
+
     stub_generator = StubGenerator()
+    PylintParser.parse(stub_generator.pkg_path)
     apiview = stub_generator.generate_tokens()
     json_tokens = stub_generator.serialize(apiview)
     # Write to JSON file

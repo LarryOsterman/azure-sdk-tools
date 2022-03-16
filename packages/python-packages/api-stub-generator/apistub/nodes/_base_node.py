@@ -1,3 +1,5 @@
+from ._pylint_parser import PylintParser
+
 from inspect import Parameter
 import re
 
@@ -24,7 +26,7 @@ class NodeEntityBase:
             self.name = obj.__name__
         self.display_name = self.name
         self.child_nodes = []
-        self.errors = []
+        self.pylint_errors = PylintParser.get_items(obj)
 
     def generate_id(self):
         """Generates ID for current object using parent object's ID and name

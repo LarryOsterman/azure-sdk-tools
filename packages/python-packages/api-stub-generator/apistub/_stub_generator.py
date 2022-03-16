@@ -118,11 +118,6 @@ class StubGenerator:
         logging.debug("Generating tokens")
         apiview = self._generate_tokens(pkg_root_path, pkg_name, namespace, source_url=self.source_url)
         if apiview.diagnostics:
-            # Show error report in console
-            if not self.hide_report:
-                logging.info("************************** Error Report **************************")
-                for m in self.module_dict.keys():
-                    self.module_dict[m].print_errors()
             logging.info("*************** Completed parsing package with errors ***************")
         else:
             logging.info("*************** Completed parsing package and generating tokens ***************")
