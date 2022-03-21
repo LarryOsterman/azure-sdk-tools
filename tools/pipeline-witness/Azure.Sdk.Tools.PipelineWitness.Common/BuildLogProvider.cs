@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 
-namespace Azure.Sdk.Tools.PipelineWitness.Services
+namespace Azure.Sdk.Tools.PipelineWitness.Common
 {
     public class BuildLogProvider
     {

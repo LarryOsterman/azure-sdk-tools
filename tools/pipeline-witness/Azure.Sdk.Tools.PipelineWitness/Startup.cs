@@ -1,17 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using System.Text;
 
 using Azure.Cosmos;
 using Azure.Sdk.Tools.PipelineWitness;
-using Azure.Sdk.Tools.PipelineWitness.Services;
+using Azure.Sdk.Tools.PipelineWitness.Common;
 using Azure.Sdk.Tools.PipelineWitness.Services.FailureAnalysis;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.TeamFoundation.Core.WebApi;
 using Microsoft.VisualStudio.Services.Common;
@@ -90,7 +86,6 @@ namespace Azure.Sdk.Tools.PipelineWitness
             builder.Services.AddLogging();
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<RunProcessor>();
-            builder.Services.AddSingleton<BlobUploadProcessor>();
             builder.Services.AddSingleton<BuildLogProvider>();
             builder.Services.AddSingleton<IFailureAnalyzer, FailureAnalyzer>();
             builder.Services.AddSingleton<IFailureClassifier, AzuriteInstallFailureClassifier>();

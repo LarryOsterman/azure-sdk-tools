@@ -1,4 +1,5 @@
-﻿using Azure.Sdk.Tools.PipelineWitness.Entities.AzurePipelines;
+﻿using Azure.Sdk.Tools.PipelineWitness.Common;
+using Azure.Sdk.Tools.PipelineWitness.Entities.AzurePipelines;
 using Microsoft.TeamFoundation.Build.WebApi;
 using Microsoft.VisualStudio.Services.WebApi;
 using System;

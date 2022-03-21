@@ -1,7 +1,8 @@
-﻿using Microsoft.TeamFoundation.Build.WebApi;
+﻿using Azure.Sdk.Tools.PipelineWitness.Common;
+using Microsoft.TeamFoundation.Build.WebApi;
 using System.Linq;
 using System.Threading.Tasks;
-
+    
 namespace Azure.Sdk.Tools.PipelineWitness.Services.FailureAnalysis
 {
     public class AzureArtifactsServiceUnavailableClassifier : IFailureClassifier

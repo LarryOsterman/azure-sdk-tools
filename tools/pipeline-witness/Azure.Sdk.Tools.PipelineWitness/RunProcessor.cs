@@ -20,12 +20,10 @@ namespace Azure.Sdk.Tools.PipelineWitness
             IFailureAnalyzer failureAnalyzer,
             ILogger<RunProcessor> logger,
             CosmosClient cosmosClient,
-            VssConnection vssConnection,
-            BlobUploadProcessor blobUploadProcessor)
+            VssConnection vssConnection)
         {
             this.failureAnalyzer = failureAnalyzer ?? throw new ArgumentNullException(nameof(failureAnalyzer));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.blobUploadProcessor = blobUploadProcessor ?? throw new ArgumentNullException(nameof(blobUploadProcessor));
             this.cosmosClient = cosmosClient ?? throw new ArgumentNullException(nameof(cosmosClient));
             this.vssConnection = vssConnection ?? throw new ArgumentNullException(nameof(vssConnection));
         }
@@ -35,7 +33,6 @@ namespace Azure.Sdk.Tools.PipelineWitness
         private readonly ILogger<RunProcessor> logger;
         private readonly CosmosClient cosmosClient;
         private readonly VssConnection vssConnection;
-        private readonly BlobUploadProcessor blobUploadProcessor;
 
         private bool IsValidAzureDevOpsUri(Uri uri)
         {
@@ -170,8 +167,6 @@ namespace Azure.Sdk.Tools.PipelineWitness
 
             var container = await GetItemContainerAsync("azure-pipelines-runs");
             await container.UpsertItemAsync(run);
-
-            await this.blobUploadProcessor.UploadBuildBlobsAsync(Account, build, timeline);
         }
 
         public async Task<Failure[]> GetFailureClassificationsAsync(Build build, Timeline timeline)

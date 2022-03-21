@@ -5,12 +5,16 @@ VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.Sdk.Tools.PipelineWitness", "Azure.Sdk.Tools.PipelineWitness\Azure.Sdk.Tools.PipelineWitness.csproj", "{32C6B030-8BED-4D1D-B007-07ABC3F314ED}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.Sdk.Tools.PipelineWitness.Queue", "Azure.Sdk.Tools.PipelineWitness.Queue\Azure.Sdk.Tools.PipelineWitness.Queue.csproj", "{EAFEBD23-4C9B-4AD6-AEC5-940CFE3A9971}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.Sdk.Tools.PipelineWitness.Tests", "Azure.Sdk.Tools.PipelineWitness.Tests\Azure.Sdk.Tools.PipelineWitness.Tests.csproj", "{AE649A76-2DDA-4B45-A426-21425A0B988A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FD213B4A-A8B5-400D-ABD3-1D5B1551CE3C}"
 ProjectSection(SolutionItems) = preProject
 	.editorconfig = .editorconfig
 EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Azure.Sdk.Tools.PipelineWitness.Common", "Azure.Sdk.Tools.PipelineWitness.Common\Azure.Sdk.Tools.PipelineWitness.Common.csproj", "{63EEFB39-8046-4633-ACE1-BC08EDE51A11}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,10 +26,18 @@ Global
 		{32C6B030-8BED-4D1D-B007-07ABC3F314ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32C6B030-8BED-4D1D-B007-07ABC3F314ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{32C6B030-8BED-4D1D-B007-07ABC3F314ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EAFEBD23-4C9B-4AD6-AEC5-940CFE3A9971}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EAFEBD23-4C9B-4AD6-AEC5-940CFE3A9971}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EAFEBD23-4C9B-4AD6-AEC5-940CFE3A9971}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EAFEBD23-4C9B-4AD6-AEC5-940CFE3A9971}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AE649A76-2DDA-4B45-A426-21425A0B988A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AE649A76-2DDA-4B45-A426-21425A0B988A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AE649A76-2DDA-4B45-A426-21425A0B988A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AE649A76-2DDA-4B45-A426-21425A0B988A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63EEFB39-8046-4633-ACE1-BC08EDE51A11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63EEFB39-8046-4633-ACE1-BC08EDE51A11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63EEFB39-8046-4633-ACE1-BC08EDE51A11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63EEFB39-8046-4633-ACE1-BC08EDE51A11}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
