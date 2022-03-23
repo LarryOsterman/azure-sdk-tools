@@ -56,7 +56,7 @@ class PropertyNode(NodeEntityBase):
         apiview.add_text(self.namespace_id, self.name)
         apiview.add_punctuation(":")
         apiview.add_space()
-        apiview.add_type(self.type)  # TODO: Pass navigation ID if it is internal type
+        apiview.add_type(self.type)
         if self.read_only:
             apiview.add_whitespace()
             apiview.add_literal("# Read-only")

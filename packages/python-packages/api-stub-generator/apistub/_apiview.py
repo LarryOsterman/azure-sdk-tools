@@ -132,6 +132,8 @@ class ApiView:
 
 
     def add_type(self, type_name, line_id=None):
+        # TODO: add_type should require an ArgType or similar object so we can link *all* types
+
         # This method replace full qualified internal types to short name and generate tokens
         if not type_name:
             return
@@ -159,7 +161,7 @@ class ApiView:
         self.add_token(token)
 
 
-    def _add_type_token(self, type_name, line_id = None):
+    def _add_type_token(self, type_name, line_id):
         # parse to get individual type name
         logging.debug("Generating tokens for type {}".format(type_name))
         types = re.search(TYPE_NAME_REGEX, type_name)
