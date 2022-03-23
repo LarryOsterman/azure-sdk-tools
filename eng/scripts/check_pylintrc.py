@@ -6,7 +6,7 @@ import sys
 # `azure_sdk_pylintrc` file stored in this repo.
 
 SDK_FILE_URL = "https://raw.github.com/Azure/azure-sdk-for-python/main/pylintrc"
-ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 LOCAL_FILE_PATH = os.path.join(ROOT_PATH, "packages", "python-packages", "api-stub-generator", "azure_sdk_pylintrc")
 
 sdk_file = requests.get(SDK_FILE_URL).content.decode()

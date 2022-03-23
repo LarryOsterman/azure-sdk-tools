@@ -199,6 +199,7 @@ stages:
             displayName: 'Verify Python APIView version consistency'
 
           - script: |
+              pip install requests
               python $(Build.SourcesDirectory)/eng/scripts/check_pylintrc.py
             displayName: 'Verify local pylintrc in sync with Azure SDK for Python'
 
