@@ -67,10 +67,10 @@ class PylintParser:
 
     @classmethod
     def parse(cls, path):
+        from apistub import ApiView
+
         pkg_name = os.path.split(path)[-1]
-        sep = os.path.sep
-        # FIXME: This needs to not be hardcoded. Obviously.
-        rcfile_path = f"D:{sep}repos{sep}azure-sdk-for-python{sep}pylintrc"
+        rcfile_path = os.path.join(ApiView.ROOT, "azure_sdk_pylintrc")
         (pylint_stdout, pylint_stderr) = epylint.py_run(f"{path} -f json --rcfile {rcfile_path}", return_std=True)
         stderr_str = pylint_stderr.read()
         # strip put stray, non-json lines from stdout

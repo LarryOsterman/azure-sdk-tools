@@ -22,4 +22,4 @@ class KeyNode(NodeEntityBase):
         apiview.add_text("", self.name)
         apiview.add_punctuation(":")
         apiview.add_space()
-        apiview.add_type(self.type, self.namespace_id)
+        apiview.add_type(self.type)

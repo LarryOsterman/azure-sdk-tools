@@ -3,6 +3,7 @@ import logging
 import re
 import importlib
 import inspect
+import os
 import platform
 
 from ._node_index import NodeIndex
@@ -29,6 +30,8 @@ class ApiView:
     :param MetadataMap metadata_map: A metadata mapping object.
     :param str source_url: An optional source URL to display in the preamble.
     """
+
+    ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
     def __init__(self, *, pkg_name="", namespace = "", metadata_map=None, source_url=None):
         self.name = pkg_name
