@@ -17,10 +17,7 @@ JSON_FIELDS = ["Name", "Version", "VersionString", "Navigation", "Tokens", "Diag
 
 HEADER_TEXT = "# Package is parsed using api-stub-generator(version:{0}), Python version: {1}".format(VERSION, platform.python_version())
 TYPE_NAME_REGEX = re.compile("(~?[a-zA-Z\d._]+)")
-TYPE_OR_SEPERATOR = " or "
-
-# Lint warnings
-SOURCE_LINK_NOT_AVAILABLE = "Source definition link is not available for [{0}]. Please check and ensure type is fully qualified name in docstring"
+TYPE_OR_SEPARATOR = " or "
 
 
 class ApiView:
@@ -145,8 +142,8 @@ class ApiView:
         logging.debug("Processing type {}".format(type_name))
         # Check if multiple types are listed with 'or' seperator
         # Encode multiple types with or separator into Union
-        if TYPE_OR_SEPERATOR in type_name:
-            types = [t.strip() for t in type_name.split(TYPE_OR_SEPERATOR) if t != TYPE_OR_SEPERATOR]
+        if TYPE_OR_SEPARATOR in type_name:
+            types = [t.strip() for t in type_name.split(TYPE_OR_SEPARATOR) if t != TYPE_OR_SEPARATOR]
             # Make a Union of types if multiple types are present
             type_name = "Union[{}]".format(", ".join(types))
 
@@ -279,16 +276,3 @@ class Navigation:
 
     def add_child(self, child):
         self.child_items.append(child)
-
-
-def is_valid_type_name(type_name):
-    try:
-        module_end_index = type_name.rfind(".")
-        if module_end_index > 0:
-            module_name = type_name[:module_end_index]
-            class_name = type_name[module_end_index+1:]
-            mod = importlib.import_module(module_name)
-            return class_name in [x[0] for x in inspect.getmembers(mod)]
-    except:
-        logging.error("Failed to import {}".format(type_name))    
-    return False

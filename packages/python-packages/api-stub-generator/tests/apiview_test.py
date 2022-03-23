@@ -16,7 +16,6 @@ class StubGenTestArgs:
     source_url = None
     out_path = None
     mapping_path = None
-    hide_report = None
     verbose = None
     filter_namespace = None
 

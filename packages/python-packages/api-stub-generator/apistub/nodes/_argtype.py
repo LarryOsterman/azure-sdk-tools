@@ -3,10 +3,6 @@ import inspect
 # Special default values that should not be treated as string literal
 SPECIAL_DEFAULT_VALUES = ["None", "..."]
 
-# Lint warnings
-TYPE_NOT_AVAILABLE = "Type is not available for {0}"
-
-TYPE_NOT_REQUIRED = ["**kwargs", "self", "cls", "*", ]
 
 class ArgType:
     """Represents Argument type

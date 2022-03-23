@@ -10,22 +10,6 @@ from ._base_node import NodeEntityBase, get_qualified_name
 from ._argtype import ArgType
 
 
-VALIDATION_REQUIRED_DUNDER = ["__init__",]
-KWARG_NOT_REQUIRED_METHODS = ["close",]
-TYPEHINT_NOT_REQUIRED_METHODS = ["close", "__init__"]
-REGEX_ITEM_PAGED = "(~[\w.]*\.)?([\w]*)\s?[\[\(][^\n]*[\]\)]"
-PAGED_TYPES = ["ItemPaged", "AsyncItemPaged",]
-# Methods that are implementation of known interface should be excluded from lint check
-# for e.g. get, update, keys
-LINT_EXCLUSION_METHODS = [
-    "get",
-    "has_key",
-    "items",
-    "keys",
-    "update",
-    "values",
-    "close",    
-]
 # Find types like ~azure.core.paging.ItemPaged and group returns ItemPaged.
 # Regex is used to find shorten such instances in complex type
 # for e,g, ~azure.core.ItemPaged.ItemPaged[~azure.communication.chat.ChatThreadInfo] to ItemPaged[ChatThreadInfo]

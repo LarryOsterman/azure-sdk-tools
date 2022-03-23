@@ -61,12 +61,6 @@ class StubGenerator:
                 action="store_true",
             )
             parser.add_argument(
-                "--hide-report",
-                help=("Hide diagnostic report."),
-                default=False,
-                action="store_true",
-            )
-            parser.add_argument(
                 "--filter-namespace",
                 help=("Generate APIView only for a specific namespace."),
             )
@@ -88,7 +82,6 @@ class StubGenerator:
         self.out_path = args.out_path
         self.source_url = args.source_url
         self.mapping_path = args.mapping_path
-        self.hide_report = args.hide_report
         self.filter_namespace = args.filter_namespace or ''
         if args.verbose:
             logging.getLogger().setLevel(logging.DEBUG)
