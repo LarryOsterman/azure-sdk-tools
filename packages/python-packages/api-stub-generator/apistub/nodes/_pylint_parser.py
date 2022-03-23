@@ -45,23 +45,7 @@ class PylintError:
 
 class PylintParser:
 
-    ALLOWED_PYLINT_SYMBOLS = {
-        "connection-string-should-not-be-constructor-param",
-        "missing-client-constructor-parameter-credential",
-        "missing-client-constructor-parameter-kwargs",
-        "client-method-has-more-than-5-positional-arguments",
-        "client-method-missing-type-annotations",
-        "incorrect-naming-convention",
-        "client-method-missing-kwargs",
-        "config-missing-kwargs-in-policy",
-        "async-client-bad-name",
-        "file-needs-copyright-header",
-        "client-method-name-no-double-underscore",
-        "specify-parameter-names-in-call",
-        "package-name-incorrect",
-        "client-suffix-needed",
-        "docstring-admonition-needs-newline"
-    }
+    AZURE_CHECKER_CODE = "47"
 
     items: List[PylintError] = []
 
@@ -76,7 +60,7 @@ class PylintParser:
         # strip put stray, non-json lines from stdout
         stdout_lines = [x for x in pylint_stdout.readlines() if not x.startswith("Exception")]
         json_items = json.loads("".join(stdout_lines))
-        cls.items = [PylintError(pkg_name, **x) for x in json_items if x["symbol"] in cls.ALLOWED_PYLINT_SYMBOLS]
+        cls.items = [PylintError(pkg_name, **x) for x in json_items if x["message-id"][1:3] == PylintParser.AZURE_CHECKER_CODE]
 
     @classmethod
     def get_items(cls, obj) -> List[PylintError]:

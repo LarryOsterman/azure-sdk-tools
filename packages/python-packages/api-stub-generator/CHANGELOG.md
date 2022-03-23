@@ -6,7 +6,7 @@ Added support for `--source-url` which allows you to specify a link to the
   APIView preamble. Intended primarily for use by other automation tools.
 Removed custom APIView diagnostic messages that existed in prior versions.
 The `--hide-report` option has been removed.
-APIView will not display diagnostics only for custom pylint rule violations
+APIView will now display diagnostics only for custom pylint rule violations
   described in the `azure-sdk-for-python` repo.
 
 ## Version 0.2.10 (2022-03-09)
