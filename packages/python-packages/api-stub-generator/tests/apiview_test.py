@@ -54,8 +54,7 @@ class TestApiView:
 
     def test_api_view_diagnostic_warnings(self):
         args = StubGenTestArgs()
-        print(args.pkg_path)
         stub_gen = StubGenerator(args=args)
         apiview = stub_gen.generate_tokens()
         # ensure we have only the expected diagnostics when testing apistubgentest
-        assert len(apiview.diagnostics) == 1
+        assert len(apiview.diagnostics) == 3

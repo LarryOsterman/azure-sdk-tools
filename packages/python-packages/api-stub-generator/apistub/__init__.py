@@ -23,10 +23,7 @@ __all__ = [
 
 
 def console_entry_point():
-    from .nodes import PylintParser
-
     stub_generator = StubGenerator()
-    PylintParser.parse(stub_generator.pkg_path)
     apiview = stub_generator.generate_tokens()
     json_tokens = stub_generator.serialize(apiview)
     # Write to JSON file

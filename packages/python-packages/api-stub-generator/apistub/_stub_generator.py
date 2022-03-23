@@ -32,6 +32,7 @@ logging.getLogger().setLevel(logging.ERROR)
 
 class StubGenerator:
     def __init__(self, args=None):
+        from .nodes import PylintParser
         if not args:
             parser = argparse.ArgumentParser(
                 description="Parses a Python package and generates a JSON token file for consumption by the APIView tool."
@@ -85,6 +86,7 @@ class StubGenerator:
         self.filter_namespace = args.filter_namespace or ''
         if args.verbose:
             logging.getLogger().setLevel(logging.DEBUG)
+        PylintParser.parse(self.pkg_path)
 
 
     def generate_tokens(self):
