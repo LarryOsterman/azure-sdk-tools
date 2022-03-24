@@ -52,11 +52,13 @@ class PylintParser:
 
     @classmethod
     def _find_pylintrc(cls):
-        try:
-            # prefer environment variable (necessary for tox)
-            return os.environ["PYLINTRC_PATH"]
-        except KeyError:
-            return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "azure_sdk_pylintrc"))
+        print(os.environ)
+        return os.environ["PYLINTRC_PATH"]
+        # try:
+        #     # prefer environment variable (necessary for tox)
+        #     return os.environ["PYLINTRC_PATH"]
+        # except KeyError:
+        #     return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "azure_sdk_pylintrc"))
 
 
     @classmethod
