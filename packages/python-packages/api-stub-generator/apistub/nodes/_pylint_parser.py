@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 import os
 from pylint import epylint
 import re
@@ -59,7 +60,11 @@ class PylintParser:
         stderr_str = pylint_stderr.read()
         # strip put stray, non-json lines from stdout
         stdout_lines = [x for x in pylint_stdout.readlines() if not x.startswith("Exception")]
-        json_items = json.loads("".join(stdout_lines))
+        try:
+            json_items = json.loads("".join(stdout_lines))
+        except Exception as err:
+            logging.error(f"Error decoding JSON: {err}")
+            logging.error(f"***STDERR***\n{stderr_str}")
         cls.items = [PylintError(pkg_name, **x) for x in json_items if x["message-id"][1:3] == PylintParser.AZURE_CHECKER_CODE]
 
     @classmethod

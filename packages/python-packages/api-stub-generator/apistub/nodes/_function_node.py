@@ -13,7 +13,7 @@ from ._argtype import ArgType
 # Find types like ~azure.core.paging.ItemPaged and group returns ItemPaged.
 # Regex is used to find shorten such instances in complex type
 # for e,g, ~azure.core.ItemPaged.ItemPaged[~azure.communication.chat.ChatThreadInfo] to ItemPaged[ChatThreadInfo]
-REGEX_FIND_LONG_TYPE = "((?:~?)[\w.]+\.+([\w]+))"
+FIND_LONG_TYPE_REGEX = re.compile(r"((?:~?)[\w.]+\.+([\w]+))")
 
 
 class FunctionNode(NodeEntityBase):
@@ -201,7 +201,7 @@ class FunctionNode(NodeEntityBase):
 
     def _generate_short_type(self, long_type):
         short_type = long_type
-        groups = re.findall(REGEX_FIND_LONG_TYPE, short_type)
+        groups = FIND_LONG_TYPE_REGEX.findall(short_type)
         for g in groups:
             short_type = short_type.replace(g[0], g[1])
         return short_type
