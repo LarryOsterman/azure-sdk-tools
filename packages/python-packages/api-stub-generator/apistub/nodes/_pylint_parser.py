@@ -51,21 +51,32 @@ class PylintParser:
     items: List[PylintError] = []
 
     @classmethod
+    def _find_pylintrc(cls):
+        try:
+            # prefer environment variable (necessary for tox)
+            return os.environ["PYLINTRC_PATH"]
+        except KeyError:
+            return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "azure_sdk_pylintrc"))
+
+
+    @classmethod
     def parse(cls, path):
         from apistub import ApiView
 
         pkg_name = os.path.split(path)[-1]
-        rcfile_path = os.path.join(ApiView.ROOT, "azure_sdk_pylintrc")
+        rcfile_path = PylintParser._find_pylintrc()
         (pylint_stdout, pylint_stderr) = epylint.py_run(f"{path} -f json --rcfile {rcfile_path}", return_std=True)
         stderr_str = pylint_stderr.read()
         # strip put stray, non-json lines from stdout
         stdout_lines = [x for x in pylint_stdout.readlines() if not x.startswith("Exception")]
         try:
             json_items = json.loads("".join(stdout_lines))
+            cls.items = [PylintError(pkg_name, **x) for x in json_items if x["message-id"][1:3] == PylintParser.AZURE_CHECKER_CODE]
         except Exception as err:
             logging.error(f"Error decoding JSON: {err}")
             logging.error(f"***STDERR***\n{stderr_str}")
-        cls.items = [PylintError(pkg_name, **x) for x in json_items if x["message-id"][1:3] == PylintParser.AZURE_CHECKER_CODE]
+            raise err
+        
 
     @classmethod
     def get_items(cls, obj) -> List[PylintError]:
