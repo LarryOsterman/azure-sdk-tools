@@ -38,11 +38,12 @@ public:
   // AstNode's don't have namespaces or names, so return something that would make callers happy.
   virtual std::string_view const Namespace() { return ""; }
   virtual std::string_view const Name() { return ""; }
+  virtual std::string_view const NavigationId() { return ""; }
 
   virtual void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) = 0;
 
-  static std::string GetCommentForNode(clang::ASTContext& context, clang::Decl const* decl);
-  static std::string GetCommentForNode(clang::ASTContext& context, clang::Decl const& decl);
+  static std::string GetCommentForNode(clang::ASTContext const& context, clang::Decl const* decl);
+  static std::string GetCommentForNode(clang::ASTContext const& context, clang::Decl const& decl);
   static std::unique_ptr<AstNode> Create(
       clang::Decl const* decl,
       AzureClassesDatabase* const azureClassesDatabase,
@@ -53,10 +54,10 @@ public:
 class AstNamedNode : public AstNode {
   std::string m_namespace;
   std::string m_name;
+  std::string m_navigationId;
 
 protected:
   AzureClassesDatabase* const m_classDatabase;
-  std::string m_navigationId;
   std::string m_nodeDocumentation;
   clang::AccessSpecifier m_nodeAccess;
 
@@ -72,4 +73,5 @@ public:
   };
   std::string_view const Namespace() override { return m_namespace; }
   std::string_view const Name() override { return m_name; }
+  std::string_view const NavigationId() override { return m_navigationId; }
 };

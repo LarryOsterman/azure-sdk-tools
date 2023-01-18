@@ -117,7 +117,7 @@ ApiViewProcessorImpl::ApiViewProcessorImpl(
   CurrentDirectorySetter currentDirectory{directoryToProcess};
 
   // Let's make sure we understand all the values passed in.
-  for (auto nodeName : configurationJson.items())
+  for (auto const& nodeName : configurationJson.items())
   {
     if (std::find(KnownSettings.begin(), KnownSettings.end(), nodeName.key())
         == KnownSettings.end())
@@ -418,8 +418,6 @@ int ApiViewProcessorImpl::ProcessApiView()
   }
 
   // Create a compilation database consisting of the source root and source file.
-  auto absTemp = m_currentSourceRoot;
-
   ApiViewCompilationDatabase compileDb(
       {std::filesystem::absolute(tempFile)},
       m_currentSourceRoot,

@@ -238,7 +238,6 @@ TEST_F(TestParser, CompileWithErrors)
   }
 }
 
-
 struct NsDumper : AstDumper
 {
   // Inherited via AstDumper
@@ -451,11 +450,11 @@ TEST_F(TestParser, Class1)
 
   auto& db = processor.GetClassesDatabase();
   EXPECT_EQ(16ul, db->GetAstNodeMap().size());
-  
+
   NsDumper dumper;
   db->DumpClassDatabase(&dumper);
   EXPECT_EQ(31ul, dumper.Messages.size());
-  
+
   size_t internalTypes = 0;
   for (const auto& msg : dumper.Messages)
   {
@@ -465,7 +464,7 @@ TEST_F(TestParser, Class1)
     }
   }
   EXPECT_EQ(internalTypes, 8ul);
-  
+
   EXPECT_TRUE(SyntaxCheckClassDb(db, "Classes1.cpp"));
 }
 TEST_F(TestParser, Class2)
@@ -529,18 +528,17 @@ TEST_F(TestParser, Templates)
 
   auto& db = processor.GetClassesDatabase();
   // Until we get parsing types working correctly, we can't do the syntax check tests.
-//  EXPECT_TRUE(SyntaxCheckClassDb(db, "Template1.cpp"));
+  EXPECT_TRUE(SyntaxCheckClassDb(db, "Template1.cpp"));
 }
 
-#if 0
 TEST_F(TestParser, AzureCore1)
 {
-  ApiViewProcessor processor("Tests", R"({
+  ApiViewProcessor processor(R"(g:\az\larryo\azure-sdk-for-cpp\sdk)", R"({
   "sourceFilesToProcess": [
-    "core/azure-core/inc/azure/core.hpp"
+    "g:/az/larryo/azure-sdk-for-cpp/sdk/core/azure-core/inc/azure/core.hpp"
   ],
   "additionalIncludeDirectories": ["core/azure-core/inc"],
-  "additionalCompilerSwitches": ["-Qunused-arguments"],
+  "additionalCompilerSwitches": [],
   "allowInternal": true,
   "includeDetail": false,
   "includePrivate": false,
@@ -548,7 +546,7 @@ TEST_F(TestParser, AzureCore1)
 }
 )"_json);
 
-    EXPECT_EQ(processor.ProcessApiView(), 0);
+  EXPECT_EQ(processor.ProcessApiView(), 0);
 
   auto& db = processor.GetClassesDatabase();
   EXPECT_LT(1ul, db->GetAstNodeMap().size());
@@ -557,15 +555,16 @@ TEST_F(TestParser, AzureCore1)
 
 TEST_F(TestParser, AzureCore2)
 {
-  ApiViewProcessor processor(R"(tests\\core\azure-core)");
+  ApiViewProcessor processor(R"(g:\az\larryo\azure-sdk-for-cpp\sdk\core\azure-core\inc)");
 
-    EXPECT_EQ(processor.ProcessApiView(), 0);
+  EXPECT_EQ(processor.ProcessApiView(), 0);
 
   auto& db = processor.GetClassesDatabase();
   EXPECT_LT(1ul, db->GetAstNodeMap().size());
   EXPECT_TRUE(SyntaxCheckClassDb(db, "Core2.cpp", true, true));
 }
 
+#if 0
 TEST_F(TestParser, AzureAttestation)
 {
   ApiViewProcessor processor(R"(tests\attestation\azure-security-attestation)", R"({

@@ -1,6 +1,6 @@
 #include <memory>
 
-namespace UniqueHandleHelper {
+namespace Internal {
 
 /**
  * Helpers to provide RAII wrappers for OpenSSL, WinHTTP, CURL, and other types.
@@ -63,7 +63,7 @@ template <typename T, template <typename> class U = UniqueHandleHelper>
 using UniqueHandle = typename U<T>::type;
 } // namespace UniqueHandleHelper
 
-namespace UniqueHandleHelper {
+namespace Internal {
 template <> struct UniqueHandleHelper<void*>
 {
   static void FreeHandle(void* obj);

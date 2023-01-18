@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iterator>
 #include <list>
+#include <variant>
 #include <vector>
 
 using namespace clang;
@@ -160,7 +161,7 @@ public:
   }
 };
 
-std::string AstNode::GetCommentForNode(ASTContext& context, Decl const* decl)
+std::string AstNode::GetCommentForNode(ASTContext const& context, Decl const* decl)
 {
   auto fullComment{context.getCommentForDecl(decl, nullptr)};
   if (fullComment)
@@ -171,7 +172,7 @@ std::string AstNode::GetCommentForNode(ASTContext& context, Decl const* decl)
   return "";
 }
 
-std::string AstNode::GetCommentForNode(ASTContext& context, Decl const& decl)
+std::string AstNode::GetCommentForNode(ASTContext const& context, Decl const& decl)
 {
   auto fullComment{context.getCommentForDecl(&decl, nullptr)};
   if (fullComment)
@@ -191,264 +192,6 @@ struct AstTerminalNode : public AstNode
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
   {
     dumper->SetNamespace("");
-  }
-};
-
-class AstType {
-
-  struct AstTypeVisitor : public TypeVisitor<AstTypeVisitor, std::unique_ptr<AstType>>
-  {
-    std::unique_ptr<AstType> VisitQualType(QualType qt)
-    {
-      llvm::outs() << "Visit QualType"
-                   << "\n";
-      return TypeVisitor::Visit(qt.split().Ty);
-    }
-    std::unique_ptr<AstType> VisitType(const Type* t)
-    {
-      llvm::outs() << "Visit Type " << QualType::getAsString(QualType(t, 0).split(), LangOptions())
-                   << "Type class: " << t->getTypeClassName() << "\n";
-      return nullptr;
-    }
-    std::unique_ptr<AstType> VisitElaboratedType(const ElaboratedType* et)
-    {
-      llvm::outs() << "Visit Elaborated type.\n";
-      return nullptr;
-      //      return std::make_unique<AstType>(QualType(et, 0), xxx);
-    }
-    std::unique_ptr<AstType> VisitRValueReferenceType(const RValueReferenceType* rv)
-    {
-      llvm::outs() << "Visit RValueReferenceType" << rv->isSugared() << "\n";
-      return VisitQualType(rv->desugar());
-    }
-    std::unique_ptr<AstType> VisitLValueReferenceType(const LValueReferenceType* lv)
-    {
-      llvm::outs() << "Visit LValueReferenceType" << lv->isSugared() << "\n";
-      if (lv->isSugared())
-      {
-        return VisitQualType(lv->desugar());
-      }
-      else
-      {
-        return VisitQualType(lv->getPointeeType());
-      }
-    }
-  };
-  std::string m_internalTypeName;
-  bool m_isBuiltinType;
-  bool m_isConstQualified;
-  bool m_isVolatile;
-  bool m_hasQualifiers;
-  bool m_isReference;
-  bool m_isRValueReference;
-  bool m_isPointer;
-  std::unique_ptr<AstType> m_underlyingType;
-
-public:
-  AstType(QualType type)
-      : m_isBuiltinType{type->isBuiltinType()}, m_isConstQualified{type.isLocalConstQualified()},
-        m_isVolatile{type.isLocalVolatileQualified()}, m_hasQualifiers{type.hasLocalQualifiers()},
-        m_isReference{type.getTypePtr()->isReferenceType()},
-        m_isRValueReference(type.getTypePtr()->isRValueReferenceType()),
-        m_isPointer{type.getTypePtr()->isPointerType()}
-  {
-    PrintingPolicy pp{LangOptions{}};
-    pp.adjustForCPlusPlus();
-    m_internalTypeName = QualType::getAsString(type.split(), pp);
-  }
-  AstType(QualType type, const ASTContext& context)
-      : m_isBuiltinType{type->isBuiltinType()}, m_isConstQualified{type.isLocalConstQualified()},
-        m_isVolatile{type.isLocalVolatileQualified()}, m_hasQualifiers{type.hasLocalQualifiers()},
-        m_isReference{type.getTypePtr()->isReferenceType()},
-        m_isRValueReference(type.getTypePtr()->isRValueReferenceType()),
-        m_isPointer{type.getTypePtr()->isPointerType()}
-  {
-
-    PrintingPolicy pp{LangOptions{}};
-    pp.adjustForCPlusPlus();
-    m_internalTypeName = QualType::getAsString(type.split(), pp);
-    // Walk the type looking for an inner type which appears to be a reasonable inner type.
-    //    if (typePtr->getTypeClass() != Type::Elaborated && typePtr->getTypeClass() !=
-    //    Type::Builtin)
-    //    {
-    //      AstTypeVisitor visitTypes;
-    //      m_underlyingType = visitTypes.Visit(typePtr);
-    //    }
-  }
-  void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const;
-};
-
-class AstStatement {
-
-public:
-  AstStatement(Stmt const* statement, ASTContext& context) {}
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const;
-};
-
-class AstExpr : public AstStatement {
-protected:
-  AstType m_type;
-  AstExpr(Expr const* expression, ASTContext& context)
-      : AstStatement(expression, context), m_type{expression->getType()}
-  {
-  }
-
-public:
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override;
-  static std::unique_ptr<AstExpr> Create(Stmt const* expression, ASTContext& context);
-  virtual bool IsEmptyExpression() const { return false; }
-};
-
-class AstIntExpr : public AstExpr {
-  int m_intValue{};
-
-public:
-  AstIntExpr(Expr const* expression, ASTContext& context) : AstExpr(expression, context)
-  {
-    Expr::EvalResult result;
-    if (expression->EvaluateAsInt(result, context))
-    {
-      m_intValue = result.Val.getInt().getExtValue();
-    }
-  }
-
-public:
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    dumper->InsertLiteral(std::to_string(m_intValue));
-  }
-};
-
-class AstStringExpr : public AstExpr {
-  std::string m_stringValue;
-
-public:
-  AstStringExpr(StringLiteral const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_stringValue{expression->getBytes()}
-  {
-  }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    dumper->InsertPunctuation('"');
-    dumper->InsertStringLiteral(m_stringValue);
-    dumper->InsertPunctuation('"');
-  }
-};
-
-class AstFloatExpr : public AstExpr {
-  double m_doubleValue{};
-  bool m_isFloat{};
-
-public:
-  AstFloatExpr(FloatingLiteral const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_doubleValue{expression->getValue().convertToDouble()}
-  {
-    auto const typePtr = expression->getType().getTypePtr();
-    if (isa<BuiltinType>(typePtr))
-    {
-      m_isFloat = cast<BuiltinType>(typePtr)->getKind() == BuiltinType::Kind::Float;
-    }
-  }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    dumper->InsertLiteral(std::to_string(m_doubleValue));
-    if (m_isFloat)
-    {
-      dumper->InsertLiteral("f");
-    }
-  }
-};
-
-class AstBoolExpr : public AstExpr {
-  bool m_boolValue{};
-
-public:
-  AstBoolExpr(CXXBoolLiteralExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_boolValue{expression->getValue()}
-  {
-  }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    if (m_boolValue)
-    {
-      dumper->InsertKeyword("true");
-    }
-    else
-    {
-      dumper->InsertKeyword("false");
-    }
-  }
-};
-
-class AstImplicitCastExpr : public AstExpr {
-  AstType m_underlyingType;
-  std::unique_ptr<AstExpr> m_castValue;
-
-public:
-  AstImplicitCastExpr(ImplicitCastExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_underlyingType{expression->getType()},
-        m_castValue{AstExpr::Create(*expression->child_begin(), context)}
-  {
-    // Assert that there is a single child of the ImplicitCastExprobject.
-    assert(++expression->child_begin() == expression->child_end());
-  }
-  std::unique_ptr<AstExpr> const& GetCastValue() const { return m_castValue; }
-  AstType const& GetCastType() const { return m_underlyingType; }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override {}
-};
-
-class AstCastExpr : public AstExpr {
-  AstType m_underlyingType;
-  std::unique_ptr<AstExpr> m_castValue;
-
-public:
-  AstCastExpr(CastExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_underlyingType{expression->getType()},
-        m_castValue{AstExpr::Create(*expression->child_begin(), context)}
-  {
-    // Assert that there is a single child of the ImplicitCastExprobject.
-    assert(++expression->child_begin() == expression->child_end());
-  }
-  std::unique_ptr<AstExpr> const& GetCastValue() const { return m_castValue; }
-  AstType const& GetCastType() const { return m_underlyingType; }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    m_underlyingType.Dump(dumper, dumpOptions);
-    dumper->InsertPunctuation('(');
-    m_castValue->Dump(dumper, dumpOptions);
-    dumper->InsertPunctuation(')');
-  }
-};
-
-//   static_cast<float>(3.7);
-// becomes:
-// CXXStaticCastExpr 0x249a20ddb18
-// <C:\Users\larryo.REDMOND\source\repos\ParseAzureSdkCpp\out\build\x64-debug\ParseTests\tests\ExpressionTests.cpp:19:22,
-// col:44> 'float' static_cast<float> <NoOp>
-//`-ImplicitCastExpr 0x249a20ddb00 <col:41> 'float' <FloatingCast> part_of_explicit_cast
-//  `-FloatingLiteral 0x249a20ddac0 <col:41> 'double' 3.700000e+00
-class AstNamedCastExpr : public AstExpr {
-  std::unique_ptr<AstExpr> m_underlyingCast;
-  std::string m_castName;
-
-public:
-  AstNamedCastExpr(CXXNamedCastExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context),
-        m_underlyingCast{AstExpr::Create(*expression->child_begin(), context)},
-        m_castName{expression->getCastName()}
-  {
-    // Assert that there is a single child of the CXXStaticCastExpr object.
-    assert(++expression->child_begin() == expression->child_end());
-  }
-  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
-  {
-    dumper->InsertKeyword(m_castName);
-    dumper->InsertPunctuation('<');
-    m_type.Dump(dumper, dumpOptions);
-    dumper->InsertPunctuation('>');
-    dumper->InsertPunctuation('(');
-    m_underlyingCast->Dump(dumper, dumpOptions);
-    dumper->InsertPunctuation(')');
   }
 };
 
@@ -480,15 +223,622 @@ void DumpList(
   }
 }
 
+struct DumpTypeOptions : DumpNodeOptions
+{
+  DumpTypeOptions(DumpNodeOptions const& that) : DumpNodeOptions(that){};
+  std::string_view typeName;
+  std::string_view typeNavigationId;
+  bool isLValueReference{};
+  bool isRValueReference{};
+};
+
+class AstType {
+  PrintingPolicy m_printPolicy{LangOptions{}};
+
+protected:
+  AstType(ASTContext const&) { m_printPolicy.adjustForCPlusPlus(); }
+
+public:
+  static std::unique_ptr<AstType> Create(QualType type, ASTContext const& context);
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const = 0;
+  const PrintingPolicy& PrintPolicy() { return m_printPolicy; }
+};
+
+class AstStatement {
+
+public:
+  AstStatement(Stmt const* statement, ASTContext const& context) {}
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const;
+};
+
+class AstExpr : public AstStatement {
+protected:
+  std::unique_ptr<AstType> m_type;
+  AstExpr(Expr const* expression, ASTContext const& context)
+      : AstStatement(expression, context), m_type{AstType::Create(expression->getType(), context)}
+  {
+  }
+
+public:
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override;
+  static std::unique_ptr<AstExpr> Create(Stmt const* expression, ASTContext const& context);
+  virtual bool IsEmptyExpression() const { return false; }
+};
+
+class AstQualType : public AstType {
+
+public:
+  std::string m_internalTypeName;
+  bool m_isBuiltinType;
+  bool m_isConstQualified;
+  bool m_isVolatile;
+  bool m_hasQualifiers;
+  bool m_isReference;
+  bool m_isRValueReference;
+  bool m_isPointer;
+  std::unique_ptr<AstType> m_underlyingType;
+
+  AstQualType(QualType type, ASTContext const& context)
+      : AstType(context), m_isBuiltinType{type->isBuiltinType()},
+        m_isConstQualified{type.isLocalConstQualified()},
+        m_isVolatile{type.isLocalVolatileQualified()}, m_hasQualifiers{type.hasLocalQualifiers()},
+        m_isReference{type.getTypePtr()->isReferenceType()},
+        m_isRValueReference(type.getTypePtr()->isRValueReferenceType()),
+        m_isPointer{type.getTypePtr()->isPointerType()}
+  {
+    m_internalTypeName = QualType::getAsString(type.split(), PrintPolicy());
+  }
+
+public:
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override;
+};
+
+class AstBuiltinType : public AstType {
+  std::string m_builtinName;
+
+public:
+  AstBuiltinType(BuiltinType const* type, ASTContext const& context) : AstType(context)
+  {
+    m_builtinName = type->getName(PrintPolicy());
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    dumper->InsertMemberName(m_builtinName);
+  }
+};
+
+class AstLValueReferenceType : public AstType {
+  std::unique_ptr<AstType> m_pointeeType;
+
+public:
+  AstLValueReferenceType(LValueReferenceType const* type, ASTContext const& context)
+      : AstType(context), m_pointeeType{AstType::Create(type->getPointeeTypeAsWritten(), context)}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    DumpTypeOptions innerOptions{dumpOptions};
+    innerOptions.isLValueReference = true;
+    m_pointeeType->Dump(dumper, innerOptions);
+    if (dumpOptions.typeName.empty())
+    {
+      dumper->InsertPunctuation('&');
+    }
+  }
+};
+
+class AstRValueReferenceType : public AstType {
+  std::unique_ptr<AstType> m_pointeeType;
+
+public:
+  AstRValueReferenceType(RValueReferenceType const* type, ASTContext const& context)
+      : AstType(context), m_pointeeType{AstType::Create(type->getPointeeTypeAsWritten(), context)}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    DumpTypeOptions innerOptions{dumpOptions};
+    innerOptions.isRValueReference = true;
+    m_pointeeType->Dump(dumper, dumpOptions);
+    if (dumpOptions.typeName.empty())
+    {
+      dumper->InsertPunctuation('&');
+      dumper->InsertPunctuation('&');
+    }
+  }
+};
+
+class AstPointerType : public AstType {
+  std::unique_ptr<AstType> m_pointeeType;
+
+public:
+  AstPointerType(PointerType const* type, ASTContext const& context)
+      : AstType(context), m_pointeeType{AstType::Create(type->getPointeeType(), context)}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    m_pointeeType->Dump(dumper, dumpOptions);
+    dumper->InsertPunctuation('*');
+  }
+};
+
+class AstElaboratedType : public AstType {
+  std::unique_ptr<AstType> m_underlyingType;
+
+public:
+  AstElaboratedType(ElaboratedType const* type, ASTContext const& context)
+      : AstType(context), m_underlyingType{AstType::Create(type->getNamedType(), context)}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    m_underlyingType->Dump(dumper, dumpOptions);
+  }
+};
+
+class AstTypedefType : public AstType {
+  std::string m_typeDefName;
+  std::string m_typeDefNavigationId;
+  bool m_isInStdNamespace{};
+
+public:
+  AstTypedefType(TypedefType const* type, ASTContext const& context)
+      : AstType(context), m_typeDefName{type->getDecl()->getQualifiedNameAsString()},
+        m_typeDefNavigationId{type->getDecl()->getQualifiedNameAsString()}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    if (m_isInStdNamespace)
+    {
+      dumper->InsertMemberName(m_typeDefName);
+    }
+    else
+    {
+      dumper->InsertTypeName(m_typeDefName, m_typeDefNavigationId);
+    }
+  }
+};
+
+class AstTemplateSpecializationType : public AstType {
+  using SavedTemplateArgument = std::variant<
+      std::unique_ptr<AstType>,
+      std::unique_ptr<AstExpr>,
+      std::unique_ptr<AstNode>,
+      std::string>;
+  std::list<SavedTemplateArgument> m_templateArguments;
+  std::string m_typeName;
+  std::string m_typeNavigationId;
+
+public:
+  AstTemplateSpecializationType(TemplateSpecializationType const* type, ASTContext const& context)
+      : AstType(context)
+  {
+    auto templateName{type->getTemplateName()};
+
+    auto templateDecl{templateName.getAsTemplateDecl()};
+    if (templateDecl)
+    {
+      if (templateDecl->isInStdNamespace())
+      {
+        m_typeName = templateDecl->getQualifiedNameAsString();
+      }
+      else
+      {
+        m_typeName = templateDecl->getQualifiedNameAsString();
+        m_typeNavigationId = templateDecl->getQualifiedNameAsString();
+      }
+    }
+    else
+    {
+      llvm::raw_string_ostream os{m_typeName};
+      type->getTemplateName().print(os, PrintPolicy());
+    }
+    for (const auto& arg : type->template_arguments())
+    {
+      switch (arg.getKind())
+      {
+        case TemplateArgument::Type:
+          m_templateArguments.push_back(AstType::Create(arg.getAsType(), context));
+          break;
+        case TemplateArgument::Expression: {
+          m_templateArguments.push_back(AstExpr::Create(arg.getAsExpr(), context));
+          break;
+        }
+        case TemplateArgument::NullPtr:
+          m_templateArguments.push_back("nullptr");
+          break;
+        case TemplateArgument::Declaration:
+        case TemplateArgument::Template:
+        case TemplateArgument::TemplateExpansion:
+        case TemplateArgument::Pack:
+          llvm::outs() << "Unknown template Specialization type : " << arg.getKind() << "\n";
+          type->dump(llvm::outs(), context);
+
+        default:
+          break;
+      }
+    }
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    if (m_typeNavigationId.empty())
+    {
+      dumper->InsertMemberName(m_typeName);
+    }
+    else
+    {
+      dumper->InsertTypeName(m_typeName, m_typeNavigationId);
+    }
+    dumper->InsertPunctuation('<');
+    DumpTypeOptions innerOptions{dumpOptions};
+    innerOptions.NeedsLeadingNewline = false;
+    DumpList(
+        m_templateArguments.begin(),
+        m_templateArguments.end(),
+        dumper,
+        innerOptions,
+        [&](AstDumper* dumper, SavedTemplateArgument const& type) {
+          switch (type.index())
+          {
+            case 0:
+
+              std::get<0>(type)->Dump(dumper, innerOptions);
+              break;
+            case 1:
+              std::get<1>(type)->Dump(dumper, innerOptions);
+              break;
+            default:
+              break;
+          }
+        });
+    dumper->InsertPunctuation('>');
+  }
+};
+
+class AstRecordType : public AstType {
+  std::string m_typeName;
+  std::string m_fullTypeName;
+
+public:
+  AstRecordType(RecordType const* type, ASTContext const& context)
+      : AstType(context), m_typeName{type->getDecl()->getNameAsString()},
+        m_fullTypeName{type->getDecl()->getQualifiedNameAsString()}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    dumper->InsertTypeName(m_typeName, m_fullTypeName);
+  }
+};
+
+class AstEnumType : public AstType {
+  std::string m_typeName;
+  std::string m_fullTypeName;
+
+public:
+  AstEnumType(EnumType const* type, ASTContext const& context)
+      : AstType(context), m_typeName{type->getDecl()->getNameAsString()},
+        m_fullTypeName{type->getDecl()->getQualifiedNameAsString()}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    dumper->InsertTypeName(m_typeName, m_fullTypeName);
+  }
+};
+
+class AstTemplateTypeParamType : public AstType {
+  std::string m_typeName;
+  std::string m_fullTypeName;
+
+public:
+  AstTemplateTypeParamType(QualType type, ASTContext const& context)
+      : AstType(context) //, m_typeName{type->getDecl()->getNameAsString()},
+                         // m_fullTypeName{type->getDecl()->getQualifiedNameAsString()}
+  {
+    auto templateType = static_cast<const clang::TemplateTypeParmType*>(type.getTypePtr());
+    if (templateType->getDecl())
+    {
+      m_typeName = templateType->getDecl()->getNameAsString();
+      m_fullTypeName = templateType->getDecl()->getQualifiedNameAsString();
+    }
+    else if (templateType->getIdentifier())
+    {
+      m_typeName = templateType->getIdentifier()->getName();
+    }
+    else
+    {
+      m_typeName = QualType::getAsString(type.split(), PrintPolicy());
+      type->dump(llvm::outs(), context);
+    }
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    dumper->InsertMemberName(m_typeName);
+  }
+};
+
+class AstParenType : public AstType {
+  std::unique_ptr<AstType> m_innerType;
+
+public:
+  AstParenType(ParenType const* type, ASTContext const& context)
+      : AstType(context), m_innerType{AstType::Create(type->getInnerType(), context)}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    m_innerType->Dump(dumper, dumpOptions);
+  }
+};
+
+class AstFunctionProtoType : public AstType {
+  std::unique_ptr<AstType> m_returnType;
+  std::list<std::unique_ptr<AstType>> m_parameters;
+
+public:
+  AstFunctionProtoType(FunctionProtoType const* type, ASTContext const& context)
+      : AstType(context), m_returnType{AstType::Create(type->getReturnType(), context)}
+  {
+    for (const auto& param : type->param_types())
+    {
+      m_parameters.push_back(AstType::Create(param, context));
+    }
+  }
+  virtual void Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const override
+  {
+    m_returnType->Dump(dumper, dumpOptions);
+    dumper->InsertWhitespace();
+    if (!dumpOptions.typeName.empty())
+    {
+      dumper->InsertPunctuation('(');
+      if (dumpOptions.isLValueReference || dumpOptions.isRValueReference)
+      {
+        dumper->InsertPunctuation('&');
+      }
+      if (dumpOptions.isRValueReference)
+      {
+        dumper->InsertPunctuation('&');
+      }
+      if (!dumpOptions.typeNavigationId.empty())
+      {
+        dumper->InsertTypeName(dumpOptions.typeName, dumpOptions.typeNavigationId);
+      }
+      else
+      {
+        dumper->InsertMemberName(dumpOptions.typeName);
+      }
+      dumper->InsertPunctuation(')');
+    }
+    dumper->InsertPunctuation('(');
+    DumpList(
+        m_parameters.begin(),
+        m_parameters.end(),
+        dumper,
+        dumpOptions,
+        [&](AstDumper* dumper, std::unique_ptr<AstType> const& type) {
+          type->Dump(dumper, dumpOptions);
+        });
+    dumper->InsertPunctuation(')');
+  }
+};
+
+std::unique_ptr<AstType> AstType::Create(QualType type, ASTContext const& context)
+{
+  switch (type->getTypeClass())
+  {
+    case Type::Builtin:
+      return std::make_unique<AstBuiltinType>(type->castAs<BuiltinType>(), context);
+    case Type::Elaborated:
+      return std::make_unique<AstElaboratedType>(type->castAs<ElaboratedType>(), context);
+    case Type::LValueReference:
+      return std::make_unique<AstLValueReferenceType>(type->castAs<LValueReferenceType>(), context);
+    case Type::RValueReference:
+      return std::make_unique<AstRValueReferenceType>(type->castAs<RValueReferenceType>(), context);
+    case Type::Typedef:
+      return std::make_unique<AstTypedefType>(type->castAs<TypedefType>(), context);
+    case Type::TemplateSpecialization:
+      return std::make_unique<AstTemplateSpecializationType>(
+          type->castAs<TemplateSpecializationType>(), context);
+    case Type::Record:
+      return std::make_unique<AstRecordType>(type->castAs<RecordType>(), context);
+    case Type::Enum:
+      return std::make_unique<AstEnumType>(type->castAs<EnumType>(), context);
+    case Type::Pointer:
+      return std::make_unique<AstPointerType>(type->castAs<PointerType>(), context);
+    case Type::TemplateTypeParm:
+      // type->castAs<TemplateTypeParmType> appears to be losing details on the
+      // underlying type, which is a problem here.
+      return std::make_unique<AstTemplateTypeParamType>(type, context);
+    case Type::Paren:
+      return std::make_unique<AstParenType>(type->castAs<ParenType>(), context);
+
+    case Type::FunctionProto:
+      return std::make_unique<AstFunctionProtoType>(type->castAs<FunctionProtoType>(), context);
+
+    case Type::InjectedClassName:
+      return std::make_unique<AstQualType>(type, context);
+    case Type::PackExpansion:
+      return std::make_unique<AstQualType>(type, context);
+    case Type::DependentName:
+      return std::unique_ptr<AstQualType>(new AstQualType(type, context));
+    case Type::ConstantArray:
+      return std::unique_ptr<AstQualType>(new AstQualType(type, context));
+    case Type::IncompleteArray:
+      return std::unique_ptr<AstQualType>(new AstQualType(type, context));
+
+    default:
+      type->dump(llvm::outs(), context);
+      return std::unique_ptr<AstQualType>(new AstQualType(type, context));
+  }
+}
+
+class AstIntExpr : public AstExpr {
+  int m_intValue{};
+
+public:
+  AstIntExpr(Expr const* expression, ASTContext const& context) : AstExpr(expression, context)
+  {
+    Expr::EvalResult result;
+    if (expression->EvaluateAsInt(result, context))
+    {
+      m_intValue = result.Val.getInt().getExtValue();
+    }
+  }
+
+public:
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    dumper->InsertLiteral(std::to_string(m_intValue));
+  }
+};
+
+class AstStringExpr : public AstExpr {
+  std::string m_stringValue;
+
+public:
+  AstStringExpr(StringLiteral const* expression, ASTContext const& context)
+      : AstExpr(expression, context), m_stringValue{expression->getBytes()}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    dumper->InsertPunctuation('"');
+    dumper->InsertStringLiteral(m_stringValue);
+    dumper->InsertPunctuation('"');
+  }
+};
+
+class AstFloatExpr : public AstExpr {
+  double m_doubleValue{};
+  bool m_isFloat{};
+
+public:
+  AstFloatExpr(FloatingLiteral const* expression, ASTContext const& context)
+      : AstExpr(expression, context), m_doubleValue{expression->getValue().convertToDouble()}
+  {
+    auto const typePtr = expression->getType().getTypePtr();
+    if (isa<BuiltinType>(typePtr))
+    {
+      m_isFloat = cast<BuiltinType>(typePtr)->getKind() == BuiltinType::Kind::Float;
+    }
+  }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    dumper->InsertLiteral(std::to_string(m_doubleValue));
+    if (m_isFloat)
+    {
+      dumper->InsertLiteral("f");
+    }
+  }
+};
+
+class AstBoolExpr : public AstExpr {
+  bool m_boolValue{};
+
+public:
+  AstBoolExpr(CXXBoolLiteralExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context), m_boolValue{expression->getValue()}
+  {
+  }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    if (m_boolValue)
+    {
+      dumper->InsertKeyword("true");
+    }
+    else
+    {
+      dumper->InsertKeyword("false");
+    }
+  }
+};
+
+class AstImplicitCastExpr : public AstExpr {
+  std::unique_ptr<AstType> m_underlyingType;
+  std::unique_ptr<AstExpr> m_castValue;
+
+public:
+  AstImplicitCastExpr(ImplicitCastExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context),
+        m_underlyingType{AstType::Create(expression->getType(), context)},
+        m_castValue{AstExpr::Create(*expression->child_begin(), context)}
+  {
+    // Assert that there is a single child of the ImplicitCastExprobject.
+    assert(++expression->child_begin() == expression->child_end());
+  }
+  std::unique_ptr<AstExpr> const& GetCastValue() const { return m_castValue; }
+  std::unique_ptr<AstType> const& GetCastType() const { return m_underlyingType; }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override {}
+};
+
+class AstCastExpr : public AstExpr {
+  std::unique_ptr<AstType> m_underlyingType;
+  std::unique_ptr<AstExpr> m_castValue;
+
+public:
+  AstCastExpr(CastExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context),
+        m_underlyingType{AstType::Create(expression->getType(), context)},
+        m_castValue{AstExpr::Create(*expression->child_begin(), context)}
+  {
+    // Assert that there is a single child of the ImplicitCastExprobject.
+    assert(++expression->child_begin() == expression->child_end());
+  }
+  std::unique_ptr<AstExpr> const& GetCastValue() const { return m_castValue; }
+  std::unique_ptr<AstType> const& GetCastType() const { return m_underlyingType; }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    m_underlyingType->Dump(dumper, dumpOptions);
+    dumper->InsertPunctuation('(');
+    m_castValue->Dump(dumper, dumpOptions);
+    dumper->InsertPunctuation(')');
+  }
+};
+
+//   static_cast<float>(3.7);
+// becomes:
+// CXXStaticCastExpr 0x249a20ddb18
+// <C:\Users\larryo.REDMOND\source\repos\ParseAzureSdkCpp\out\build\x64-debug\ParseTests\tests\ExpressionTests.cpp:19:22,
+// col:44> 'float' static_cast<float> <NoOp>
+//`-ImplicitCastExpr 0x249a20ddb00 <col:41> 'float' <FloatingCast> part_of_explicit_cast
+//  `-FloatingLiteral 0x249a20ddac0 <col:41> 'double' 3.700000e+00
+class AstNamedCastExpr : public AstExpr {
+  std::unique_ptr<AstExpr> m_underlyingCast;
+  std::string m_castName;
+
+public:
+  AstNamedCastExpr(CXXNamedCastExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context),
+        m_underlyingCast{AstExpr::Create(*expression->child_begin(), context)},
+        m_castName{expression->getCastName()}
+  {
+    // Assert that there is a single child of the CXXStaticCastExpr object.
+    assert(++expression->child_begin() == expression->child_end());
+  }
+  virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
+  {
+    dumper->InsertKeyword(m_castName);
+    dumper->InsertPunctuation('<');
+    m_type->Dump(dumper, dumpOptions);
+    dumper->InsertPunctuation('>');
+    dumper->InsertPunctuation('(');
+    m_underlyingCast->Dump(dumper, dumpOptions);
+    dumper->InsertPunctuation(')');
+  }
+};
+
 class AstCtorExpr : public AstExpr {
   std::vector<std::unique_ptr<AstExpr>> m_args;
 
 public:
-  AstCtorExpr(CXXConstructExpr const* expression, ASTContext& context)
+  AstCtorExpr(CXXConstructExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
     // Reset the type to the type of the constructor.
-    m_type = AstType{expression->getType()};
+    m_type = AstType::Create(expression->getType(), context);
     int argn = 0;
     for (auto const& arg : expression->arguments())
     {
@@ -517,7 +867,7 @@ public:
     }
     else
     {
-      m_type.Dump(dumper, dumpOptions);
+      m_type->Dump(dumper, dumpOptions);
       dumper->InsertPunctuation('(');
     }
     DumpList(
@@ -541,18 +891,23 @@ public:
 
 class AstDeclRefExpr : public AstExpr {
   std::string m_referencedName;
+  std::string m_exprName;
+  bool m_hasQualifier;
 
 public:
-  AstDeclRefExpr(DeclRefExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_referencedName{
-                                          expression->getFoundDecl()->getNameAsString()}
+  AstDeclRefExpr(DeclRefExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context), m_referencedName{expression->getFoundDecl()->getName()},
+        m_exprName{expression->getDecl()->getName()}, m_hasQualifier{expression->hasQualifier()}
   {
   }
   virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
   {
-    m_type.Dump(dumper, dumpOptions);
-    dumper->InsertPunctuation(':');
-    dumper->InsertPunctuation(':');
+    if (m_hasQualifier)
+    {
+      m_type->Dump(dumper, dumpOptions);
+      dumper->InsertPunctuation(':');
+      dumper->InsertPunctuation(':');
+    }
     dumper->InsertMemberName(m_referencedName);
   }
 };
@@ -561,13 +916,13 @@ class AstDependentDeclRefExpr : public AstExpr {
   std::string m_referencedName;
 
 public:
-  AstDependentDeclRefExpr(DependentScopeDeclRefExpr const* expression, ASTContext& context)
+  AstDependentDeclRefExpr(DependentScopeDeclRefExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context), m_referencedName{expression->getDeclName().getAsString()}
   {
   }
   virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
   {
-    m_type.Dump(dumper, dumpOptions);
+    m_type->Dump(dumper, dumpOptions);
     dumper->InsertPunctuation(':');
     dumper->InsertPunctuation(':');
     dumper->InsertMemberName(m_referencedName);
@@ -577,7 +932,7 @@ public:
 class AstNullptrRefExpr : public AstExpr {
 
 public:
-  AstNullptrRefExpr(CXXNullPtrLiteralExpr const* expression, ASTContext& context)
+  AstNullptrRefExpr(CXXNullPtrLiteralExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
   }
@@ -593,11 +948,11 @@ class AstMethodCallExpr : public AstExpr {
   std::list<std::unique_ptr<AstExpr>> m_methodParams;
 
 public:
-  AstMethodCallExpr(CXXMemberCallExpr const* expression, ASTContext& context)
+  AstMethodCallExpr(CXXMemberCallExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
     m_calledMethod = expression->getMethodDecl()->getNameAsString();
-    m_type = AstType{expression->getObjectType()};
+    m_type = AstType::Create(expression->getObjectType(), context);
     assert(++expression->child_begin() == expression->child_end());
     assert(isa<MemberExpr>(*expression->child_begin()));
     m_memberAccessor = AstExpr::Create(*expression->child_begin(), context);
@@ -621,7 +976,7 @@ protected:
   }
 
 public:
-  AstInitializerList(InitListExpr const* expression, ASTContext& context)
+  AstInitializerList(InitListExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
     for (const auto& initializer : expression->children())
@@ -637,7 +992,7 @@ class AstMemberExpr : public AstExpr {
   std::unique_ptr<AstExpr> m_member;
 
 public:
-  AstMemberExpr(MemberExpr const* expression, ASTContext& context)
+  AstMemberExpr(MemberExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context),
         m_memberMethod{expression->getMemberDecl()->getNameAsString()},
         m_member{AstExpr::Create(*expression->child_begin(), context)}
@@ -652,7 +1007,7 @@ class AstCallExpr : public AstExpr {
   std::list<std::unique_ptr<AstExpr>> m_arguments;
 
 public:
-  AstCallExpr(CallExpr const* expression, ASTContext& context) : AstExpr(expression, context)
+  AstCallExpr(CallExpr const* expression, ASTContext const& context) : AstExpr(expression, context)
   {
     m_methodToCall = expression->getDirectCallee()->getQualifiedNameAsString();
     for (auto const& arg : expression->arguments())
@@ -692,7 +1047,7 @@ class AstBinaryOperatorExpr : public AstExpr {
   std::string m_opcodeString;
 
 public:
-  AstBinaryOperatorExpr(BinaryOperator const* expression, ASTContext& context)
+  AstBinaryOperatorExpr(BinaryOperator const* expression, ASTContext const& context)
       : AstExpr(expression, context),
         m_leftOperator{AstExpr::Create(expression->getLHS(), context)},
         m_rightOperator{AstExpr::Create(expression->getRHS(), context)},
@@ -718,7 +1073,7 @@ class AstUnaryOperatorExpr : public AstExpr {
   std::string m_opcode;
 
 public:
-  AstUnaryOperatorExpr(UnaryOperator const* expression, ASTContext& context)
+  AstUnaryOperatorExpr(UnaryOperator const* expression, ASTContext const& context)
       : AstExpr(expression, context), m_subExpr{AstExpr::Create(expression->getSubExpr(), context)},
         m_opcode(expression->getOpcodeStr(expression->getOpcode())),
         m_isPrefix(expression->isPrefix()), m_isPostfix(expression->isPostfix())
@@ -753,17 +1108,18 @@ public:
 };
 
 class AstScalarValueInit : public AstExpr {
-  AstType m_underlyingType;
+  std::unique_ptr<AstType> m_underlyingType;
 
 public:
-  AstScalarValueInit(CXXScalarValueInitExpr const* expression, ASTContext& context)
-      : AstExpr(expression, context), m_underlyingType{expression->getTypeSourceInfo()->getType()}
+  AstScalarValueInit(CXXScalarValueInitExpr const* expression, ASTContext const& context)
+      : AstExpr(expression, context),
+        m_underlyingType{AstType::Create(expression->getTypeSourceInfo()->getType(), context)}
 
   {
   }
   virtual void Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const override
   {
-    m_underlyingType.Dump(dumper, dumpOptions);
+    m_underlyingType->Dump(dumper, dumpOptions);
     dumper->InsertPunctuation('(');
     dumper->InsertPunctuation(')');
   }
@@ -774,7 +1130,7 @@ class AstDefaultInitExpr : public AstExpr {
   bool IsEmptyExpression() const override { return true; }
 
 public:
-  AstDefaultInitExpr(CXXDefaultInitExpr const* expression, ASTContext& context)
+  AstDefaultInitExpr(CXXDefaultInitExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
   }
@@ -790,7 +1146,7 @@ class AstDefaultArgExpr : public AstExpr {
   bool IsEmptyExpression() const override { return true; }
 
 public:
-  AstDefaultArgExpr(CXXDefaultArgExpr const* expression, ASTContext& context)
+  AstDefaultArgExpr(CXXDefaultArgExpr const* expression, ASTContext const& context)
       : AstExpr(expression, context)
   {
   }
@@ -801,7 +1157,7 @@ public:
   }
 };
 
-std::unique_ptr<AstExpr> AstExpr::Create(Stmt const* statement, ASTContext& context)
+std::unique_ptr<AstExpr> AstExpr::Create(Stmt const* statement, ASTContext const& context)
 {
   if (statement)
   {
@@ -918,12 +1274,13 @@ AstNamedNode::AstNamedNode(
 }
 
 class AstBaseClass {
-  AstType m_baseClass;
+  std::unique_ptr<AstType> m_baseClass;
   AccessSpecifier m_access;
 
 public:
-  AstBaseClass(CXXBaseSpecifier const& base)
-      : m_baseClass{base.getType()}, m_access{base.getAccessSpecifierAsWritten()} {};
+  AstBaseClass(CXXBaseSpecifier const& base, ASTContext const& context)
+      : m_baseClass{AstType::Create(base.getType(), context)},
+        m_access{base.getAccessSpecifierAsWritten()} {};
 
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions);
 };
@@ -935,12 +1292,12 @@ void AstBaseClass::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOption
     dumper->InsertKeyword(AccessSpecifierToString(m_access));
     dumper->InsertWhitespace();
   }
-  m_baseClass.Dump(dumper, dumpOptions);
+  m_baseClass->Dump(dumper, dumpOptions);
 }
 
 class AstParamVariable : public AstNamedNode {
   std::string m_typeAsString;
-  AstType m_type;
+  std::unique_ptr<AstType> m_type;
   bool m_isStatic{};
   bool m_isArray{};
   std::string m_variableInitializer;
@@ -951,7 +1308,9 @@ public:
       ParmVarDecl const* var,
       AzureClassesDatabase* const database,
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
-      : AstNamedNode(var, database, parentNode), m_type{var->getType(), var->getASTContext()},
+      : AstNamedNode(var, database, parentNode), m_type{AstType::Create(
+                                                     var->getType(),
+                                                     var->getASTContext())},
         m_isStatic(var->isStaticDataMember())
 
   {
@@ -1024,7 +1383,7 @@ public:
 
 class AstVariable : public AstNamedNode {
   std::string m_typeAsString;
-  AstType m_type;
+  std::unique_ptr<AstType> m_type;
   bool m_isStatic{};
   bool m_isConstexpr{};
   bool m_isConst{};
@@ -1036,7 +1395,9 @@ public:
       VarDecl const* var,
       AzureClassesDatabase* const database,
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
-      : AstNamedNode(var, database, parentNode), m_type{var->getType(), var->getASTContext()},
+      : AstNamedNode(var, database, parentNode), m_type{AstType::Create(
+                                                     var->getType(),
+                                                     var->getASTContext())},
         m_isStatic(var->isStaticDataMember()), m_isConstexpr(var->isConstexpr()),
         m_isConst(var->getType().isConstQualified())
   {
@@ -1060,7 +1421,7 @@ public:
 
     if (m_isStatic && !(m_isConstexpr || m_isConst))
     {
-      database->CreateApiViewMessage(ApiViewMessages::NonConstStaticFields, m_navigationId);
+      database->CreateApiViewMessage(ApiViewMessages::NonConstStaticFields, NavigationId());
     }
   }
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
@@ -1122,8 +1483,7 @@ public:
   {
     if (param->hasDefaultArgument())
     {
-      m_defaultValue
-          = std::make_unique<AstType>(param->getDefaultArgument(), param->getASTContext());
+      m_defaultValue = AstType::Create(param->getDefaultArgument(), param->getASTContext());
     }
 
     for (auto attr : param->attrs())
@@ -1196,7 +1556,7 @@ public:
 
     if (templateParam->hasDefaultArgument())
     {
-      auto defaultArg = templateParam->getDefaultArgument().getArgument();
+      auto& defaultArg = templateParam->getDefaultArgument().getArgument();
       switch (defaultArg.getKind())
       {
 
@@ -1259,7 +1619,7 @@ public:
 
 class AstNonTypeTemplateParam : public AstNamedNode {
   std::unique_ptr<AstExpr> m_defaultArgument;
-  AstType m_templateType;
+  std::unique_ptr<AstType> m_templateType;
 
 public:
   AstNonTypeTemplateParam(
@@ -1268,12 +1628,15 @@ public:
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
       : AstNamedNode(param, database, parentNode),
         m_defaultArgument(AstExpr::Create(param->getDefaultArgument(), param->getASTContext())),
-        m_templateType{param->getType()}
+        m_templateType{AstType::Create(param->getType(), param->getASTContext())}
   {
   }
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
   {
-    m_templateType.Dump(dumper, dumpOptions);
+    DumpTypeOptions typeOptions{dumpOptions};
+    typeOptions.typeName = Name();
+    typeOptions.typeNavigationId = NavigationId();
+    m_templateType->Dump(dumper, typeOptions);
     if (m_defaultArgument)
     {
       dumper->InsertWhitespace();
@@ -1295,17 +1658,22 @@ public:
 //        - BuiltinType 0x122e4762c70 'long long'
 
 class AstTypeAlias : public AstNamedNode {
-  AstType m_aliasedType;
+  std::unique_ptr<AstType> m_aliasedType;
 
 public:
   AstTypeAlias(
       TypeAliasDecl const* alias,
       AzureClassesDatabase* const database,
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
-      : AstNamedNode(alias, database, parentNode), m_aliasedType{alias->getUnderlyingType()}
-
+      : AstNamedNode(alias, database, parentNode),
+        m_aliasedType{AstType::Create(alias->getUnderlyingType(), alias->getASTContext())}
   {
+    if (Name() == "BasicUniqueHandle")
+    {
+      alias->dump(llvm::outs());
+    }
   }
+
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
   {
     if (dumpOptions.NeedsNamespaceAdjustment)
@@ -1322,7 +1690,7 @@ public:
     dumper->InsertWhitespace();
     dumper->InsertPunctuation('=');
     dumper->InsertWhitespace();
-    m_aliasedType.Dump(dumper, dumpOptions);
+    m_aliasedType->Dump(dumper, dumpOptions);
     dumper->InsertPunctuation(';');
     dumper->Newline();
   }
@@ -1333,7 +1701,7 @@ protected:
   bool m_isConstexpr;
   bool m_isStatic;
   std::vector<std::unique_ptr<AstNode>> m_parameters;
-  AstType m_returnValue;
+  std::unique_ptr<AstType> m_returnValue;
   bool m_isMemberOfClass;
   bool m_isSpecialFunction;
   ExceptionSpecificationType m_exceptionSpecification;
@@ -1405,7 +1773,8 @@ public:
       AzureClassesDatabase* const database,
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
       : AstNamedNode(func, database, parentNode), m_isConstexpr(func->isConstexpr()),
-        m_isStatic(func->isStatic()), m_returnValue(func->getReturnType(), func->getASTContext()),
+        m_isStatic(func->isStatic()),
+        m_returnValue{AstType::Create(func->getReturnType(), func->getASTContext())},
         m_isMemberOfClass{func->isCXXClassMember()},
         m_isSpecialFunction{
             func->getKind() == Decl::CXXConstructor || func->getKind() == Decl::CXXDestructor},
@@ -1435,7 +1804,7 @@ public:
     if (Namespace().empty())
     {
       database->CreateApiViewMessage(
-          ApiViewMessages::TypeDeclaredInGlobalNamespace, m_navigationId);
+          ApiViewMessages::TypeDeclaredInGlobalNamespace, NavigationId());
     }
   }
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
@@ -1468,7 +1837,7 @@ public:
         dumper->InsertKeyword("constexpr");
         dumper->InsertWhitespace();
       }
-      m_returnValue.Dump(dumper, dumpOptions);
+      m_returnValue->Dump(dumper, dumpOptions);
       dumper->InsertWhitespace();
     }
     if (dumpOptions.IncludeNamespace)
@@ -1483,7 +1852,7 @@ public:
       dumper->InsertPunctuation(':');
       dumper->InsertPunctuation(':');
     }
-    dumper->InsertTypeName(Name(), m_navigationId);
+    dumper->InsertTypeName(Name(), NavigationId());
     dumper->InsertPunctuation('(');
     {
       DumpNodeOptions innerOptions{dumpOptions};
@@ -1618,7 +1987,7 @@ public:
     {
       if (!ctor->getParent()->isEffectivelyFinal())
       {
-        database->CreateApiViewMessage(ApiViewMessages::ImplicitConstructor, m_navigationId);
+        database->CreateApiViewMessage(ApiViewMessages::ImplicitConstructor, NavigationId());
       }
     }
   }
@@ -1996,7 +2365,7 @@ public:
   {
     for (const auto& arg : templateDecl->getTemplateArgs().asArray())
     {
-      m_arguments.push_back(std::make_unique<AstType>(arg.getAsType()));
+      m_arguments.push_back(AstType::Create(arg.getAsType(), templateDecl->getASTContext()));
     }
   }
 
@@ -2025,7 +2394,7 @@ public:
 class AstConversion : public AstNamedNode {
   bool m_isExplicit;
   bool m_isConstexpr;
-  AstType m_conversionType;
+  std::unique_ptr<AstType> m_conversionType;
 
 public:
   AstConversion(
@@ -2034,7 +2403,8 @@ public:
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
       : AstNamedNode(conversion, azureClassesDatabase, parentNode),
         m_isExplicit{conversion->isExplicit()}, m_isConstexpr{conversion->isConstexpr()},
-        m_conversionType{conversion->getConversionType(), conversion->getASTContext()}
+        m_conversionType{
+            AstType::Create(conversion->getConversionType(), conversion->getASTContext())}
   {
   }
   void DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions) override
@@ -2055,7 +2425,7 @@ public:
     }
     dumper->InsertKeyword("operator");
     dumper->InsertWhitespace();
-    m_conversionType.Dump(dumper, dumpOptions);
+    m_conversionType->Dump(dumper, dumpOptions);
     dumper->InsertPunctuation('(');
     dumper->InsertPunctuation(')');
     if (dumpOptions.NeedsTrailingSemi)
@@ -2070,7 +2440,7 @@ public:
 };
 
 class AstField : public AstNamedNode {
-  AstType m_fieldType;
+  std::unique_ptr<AstType> m_fieldType;
   std::unique_ptr<AstExpr> m_initializer;
   InClassInitStyle m_classInitializerStyle;
   bool m_hasDefaultMemberInitializer{};
@@ -2083,9 +2453,9 @@ public:
       AzureClassesDatabase* const azureClassesDatabase,
       std::shared_ptr<TypeHierarchy::TypeHierarchyNode> parentNode)
       : AstNamedNode(fieldDecl, azureClassesDatabase, parentNode),
-        m_fieldType{fieldDecl->getType()}, m_initializer{AstExpr::Create(
-                                               fieldDecl->getInClassInitializer(),
-                                               fieldDecl->getASTContext())},
+        m_fieldType{AstType::Create(fieldDecl->getType(), fieldDecl->getASTContext())},
+        m_initializer{
+            AstExpr::Create(fieldDecl->getInClassInitializer(), fieldDecl->getASTContext())},
         m_classInitializerStyle{fieldDecl->getInClassInitStyle()},
         m_hasDefaultMemberInitializer{fieldDecl->hasInClassInitializer()},
         m_isMutable{fieldDecl->isMutable()}, m_isConst{fieldDecl->getType().isConstQualified()}
@@ -2198,13 +2568,13 @@ public:
     if (!m_isScoped)
     {
       azureClassesDatabase->CreateApiViewMessage(
-          ApiViewMessages::UnscopedEnumeration, m_navigationId);
+          ApiViewMessages::UnscopedEnumeration, NavigationId());
     }
     // All the types created under this node use a newly created node for their parent.
     if (parentNode)
     {
       parentNode = parentNode->InsertChildNode(
-          Name(), m_navigationId, TypeHierarchy::TypeHierarchyClass::Enum);
+          Name(), NavigationId(), TypeHierarchy::TypeHierarchyClass::Enum);
     }
     for (auto enumerator : enumDecl->enumerators())
     {
@@ -2265,7 +2635,7 @@ AstClassLike::AstClassLike(
   if (parentNode)
   {
     parentNode = parentNode->InsertChildNode(
-        !m_isAnonymousNamedStruct ? Name() : m_anonymousNamedStructName, m_navigationId, classType);
+        !m_isAnonymousNamedStruct ? Name() : m_anonymousNamedStructName, NavigationId(), classType);
   }
 
   for (auto& attr : decl->attrs())
@@ -2291,7 +2661,7 @@ AstClassLike::AstClassLike(
   {
     for (auto const& base : decl->bases())
     {
-      m_baseClasses.push_back(std::make_unique<AstBaseClass>(base));
+      m_baseClasses.push_back(std::make_unique<AstBaseClass>(base, decl->getASTContext()));
     }
     bool shouldSkipNextChild = false;
     for (auto child : decl->decls())
@@ -2429,7 +2799,7 @@ void AstClassLike::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOption
   }
   DumpTag(dumper, dumpOptions);
   dumper->InsertWhitespace();
-  dumper->InsertTypeName(Name(), m_navigationId);
+  dumper->InsertTypeName(Name(), NavigationId());
   DumpTemplateSpecializationArguments(dumper, dumpOptions);
   if (!m_isForwardDeclaration)
   {
@@ -2475,7 +2845,7 @@ void AstClassLike::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOption
     if (m_isAnonymousNamedStruct && !m_anonymousNamedStructName.empty())
     {
       dumper->InsertWhitespace();
-      dumper->InsertTypeName(m_anonymousNamedStructName, m_navigationId);
+      dumper->InsertTypeName(m_anonymousNamedStructName, NavigationId());
     }
   }
   if (dumpOptions.NeedsTrailingSemi)
@@ -2515,7 +2885,7 @@ void AstEnum::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions)
     }
   }
   dumper->InsertWhitespace();
-  dumper->InsertTypeName(Name(), m_navigationId);
+  dumper->InsertTypeName(Name(), NavigationId());
   if (m_isFixed)
   {
     dumper->InsertWhitespace();
@@ -2561,7 +2931,7 @@ void AstField::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions)
   {
     dumper->LeftAlign();
   }
-  m_fieldType.Dump(dumper, dumpOptions);
+  m_fieldType->Dump(dumper, dumpOptions);
   dumper->InsertWhitespace();
   dumper->InsertMemberName(Name());
   // if (m_initializer)
@@ -2589,9 +2959,17 @@ void AstField::DumpNode(AstDumper* dumper, DumpNodeOptions const& dumpOptions)
   }
 }
 
-void AstType::Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const
+void AstQualType::Dump(AstDumper* dumper, DumpTypeOptions const& dumpOptions) const
 {
   dumper->InsertMemberName(m_internalTypeName);
+  if (dumpOptions.isLValueReference || dumpOptions.isRValueReference)
+  {
+    dumper->InsertPunctuation('&');
+  }
+  if (dumpOptions.isRValueReference)
+  {
+    dumper->InsertPunctuation('&');
+  }
 }
 
 void AstExpr::Dump(AstDumper* dumper, DumpNodeOptions const& dumpOptions) const
